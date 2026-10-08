@@ -367,24 +367,24 @@ export const deleteCandidate = async (req: AuthRequest, res: Response) => {
     }
 
     // Perform cascading deletes across all related collections
-    // const modelsToDeleteFrom = [
-    //   'AiUsageLog', 'AppointmentLetter', 'AssetAccessForm', 'BankPayrollInfo',
-    //   'BGVRequest', 'ConductAcceptance', 'CTCBreakup', 'DocumentChecklist',
-    //   'EmergencyContact', 'EngagementConfirmation', 'HiringPipelineState',
-    //   'InductionForm', 'Interview', 'InterviewEvaluation', 'JoiningConfirmation',
-    //   'JoiningForm', 'LetterOfIntent', 'NDADocument', 'Nomination', 'OfferLetter',
-    //   'PolicyAcceptance', 'ResumeScreening', 'SelectionApproval', 'TeamIntro'
-    // ];
+    const modelsToDeleteFrom = [
+      'AiUsageLog', 'AppointmentLetter', 'AssetAccessForm', 'BankPayrollInfo',
+      'BGVRequest', 'ConductAcceptance', 'CTCBreakup', 'DocumentChecklist',
+      'EmergencyContact', 'EngagementConfirmation', 'HiringPipelineState',
+      'InductionForm', 'Interview', 'InterviewEvaluation', 'JoiningConfirmation',
+      'JoiningForm', 'LetterOfIntent', 'NDADocument', 'Nomination', 'OfferLetter',
+      'PolicyAcceptance', 'ResumeScreening', 'SelectionApproval', 'TeamIntro'
+    ];
 
-    // for (const modelName of modelsToDeleteFrom) {
-    //   try {
-    //     if (mongoose.models[modelName]) {
-    //       await mongoose.models[modelName].deleteMany({ candidateId: id, tenantId } as any);
-    //     }
-    //   } catch (err) {
-    //     console.warn(`Could not cascade delete from ${modelName} for candidate ${id}:`, err);
-    //   }
-    // }
+    for (const modelName of modelsToDeleteFrom) {
+      try {
+        if (mongoose.models[modelName]) {
+          await mongoose.models[modelName].deleteMany({ candidateId: id, tenantId } as any);
+        }
+      } catch (err) {
+        console.warn(`Could not cascade delete from ${modelName} for candidate ${id}:`, err);
+      }
+    }
 
     const candidate = await Candidate.findOne({ _id: id, tenantId } as any);
 
