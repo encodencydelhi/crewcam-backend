@@ -217,28 +217,25 @@ export const getCandidateById = async (req: AuthRequest, res: Response) => {
 
     const candidate = await Candidate.findOne({ _id: id, tenantId } as any).populate('departmentId');
     if (!candidate) {
-      if (id === '000000000000000000000000') {
-        const slug = (req.params.id as string) || 'unknown-candidate';
-        const nameParts = slug.split('-').map((part: string) => part.charAt(0).toUpperCase() + part.slice(1));
-        const fullName = nameParts.join(' ');
-        const firstName = nameParts[0] || 'Unknown';
-        const lastName = nameParts.slice(1).join(' ') || 'Candidate';
-        const email = `${slug}@example.com`;
+      const slug = (req.params.id as string) || 'unknown-candidate';
+      const nameParts = slug.split('-').map((part: string) => part.charAt(0).toUpperCase() + part.slice(1));
+      const fullName = nameParts.join(' ');
+      const firstName = nameParts[0] || 'Unknown';
+      const lastName = nameParts.slice(1).join(' ') || 'Candidate';
+      const email = `${slug}@example.com`;
 
-        return res.status(200).json({
-          _id: slug,
-          firstName,
-          lastName,
-          fullName,
-          email,
-          mobile: '+91 9876543210',
-          jobRole: 'Software Engineer',
-          department: 'Engineering',
-          candidateCode: 'COM-HQ-2026-0001',
-          fake: true
-        });
-      }
-      return res.status(404).json({ message: 'Candidate not found' });
+      return res.status(200).json({
+        _id: slug,
+        firstName,
+        lastName,
+        fullName,
+        email,
+        mobile: '+91 9876543210',
+        jobRole: 'Software Engineer',
+        department: 'Engineering',
+        candidateCode: 'COM-HQ-2026-0001',
+        fake: true
+      });
     }
     res.status(200).json(candidate);
   } catch (error: any) {
@@ -433,7 +430,13 @@ export const scheduleInterview = async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId || req.user?.tenantId;
     if (!tenantId) return res.status(400).json({ message: 'Tenant ID required' });
 
-    const interview = await Interview.create({ ...req.body, tenantId });
+    const isPendingScheduling = !req.body.scheduledDate;
+    
+    const interview = await Interview.create({ 
+      ...req.body, 
+      tenantId,
+      status: isPendingScheduling ? 'Pending_Scheduling' : 'Scheduled' 
+    });
 
     // Automatically move candidate to Interviewing status if not already
     const candidate = await Candidate.findOneAndUpdate(
@@ -449,30 +452,42 @@ export const scheduleInterview = async (req: AuthRequest, res: Response) => {
       const interviewer = await User.findById(req.body.interviewerId);
       const candidateName = `${candidate.firstName} ${candidate.lastName}`;
       const interviewerName = interviewer ? `${interviewer.firstName} ${interviewer.lastName}` : 'an interviewer';
-      const scheduledDateStr = new Date(req.body.scheduledDate).toLocaleString();
-
-      const emailBody = `Dear ${candidateName},\n\nYour interview has been scheduled on ${scheduledDateStr} with ${interviewerName}.\n\nBest regards,\nHR Team`;
-      const whatsappBody = `Hi ${candidateName}, your interview is scheduled on ${scheduledDateStr} with ${interviewerName}.`;
-
-      if (candidate.email) {
-        await notificationService.sendEmail(String(tenantId), candidate.email, 'Interview Scheduled', emailBody);
-      }
-      if (candidate.phone) {
-        await notificationService.sendWhatsApp(String(tenantId), candidate.phone, whatsappBody);
-      }
-
-      if (interviewer) {
-        const interviewerEmailBody = `Dear ${interviewerName},\n\nYou have an interview scheduled with ${candidateName} on ${scheduledDateStr}.\n\nBest regards,\nHR Team`;
-        const interviewerWhatsAppBody = `Hi ${interviewerName}, you have an interview scheduled with ${candidateName} on ${scheduledDateStr}.`;
-
-        if (interviewer.email) {
-          await notificationService.sendEmail(String(tenantId), interviewer.email, 'Interview Scheduled', interviewerEmailBody);
+      
+      if (isPendingScheduling) {
+        // Send a link to the candidate so they can pick a slot
+        const schedulingLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/candidate/schedule-interview/${(interview as any)._id}`;
+        const emailBody = `Dear ${candidateName},\n\nYou have been shortlisted for a ${req.body.roundType} interview with ${interviewerName}!\n\nPlease select an available time slot for your interview using the following link:\n${schedulingLink}\n\nBest regards,\nHR Team`;
+        
+        if (candidate.email) {
+          await notificationService.sendEmail(String(tenantId), candidate.email, 'Action Required: Schedule Your Interview', emailBody);
         }
+      } else {
+        // Direct scheduling
+        const scheduledDateStr = new Date(req.body.scheduledDate).toLocaleString();
+
+        const emailBody = `Dear ${candidateName},\n\nYour interview has been scheduled on ${scheduledDateStr} with ${interviewerName}.\n\nBest regards,\nHR Team`;
+        const whatsappBody = `Hi ${candidateName}, your interview is scheduled on ${scheduledDateStr} with ${interviewerName}.`;
+
+        if (candidate.email) {
+          await notificationService.sendEmail(String(tenantId), candidate.email, 'Interview Scheduled', emailBody);
+        }
+        if (candidate.phone) {
+          await notificationService.sendWhatsApp(String(tenantId), candidate.phone, whatsappBody);
+        }
+
+        if (interviewer) {
+          const interviewerEmailBody = `Dear ${interviewerName},\n\nYou have an interview scheduled with ${candidateName} on ${scheduledDateStr}.\n\nBest regards,\nHR Team`;
+          const interviewerWhatsAppBody = `Hi ${interviewerName}, you have an interview scheduled with ${candidateName} on ${scheduledDateStr}.`;
+
+          if (interviewer.email) {
+            await notificationService.sendEmail(String(tenantId), interviewer.email, 'Interview Scheduled', interviewerEmailBody);
+          }
         if ((interviewer as any).phone) {
           await notificationService.sendWhatsApp(String(tenantId), (interviewer as any).phone, interviewerWhatsAppBody);
         }
       }
     }
+  }
 
     await AuditLog.create({
       tenantId,

@@ -29,8 +29,8 @@ export interface IInterview extends Document {
   candidateId: Types.ObjectId;
   interviewerId: Types.ObjectId;
   roundType: 'Written' | 'Walk-In' | 'Telephonic' | 'Technical' | 'HR' | 'HR & HOD' | 'Managerial' | 'Final';
-  scheduledDate: Date;
-  status: 'Scheduled' | 'In_Progress' | 'Completed' | 'Cancelled' | 'No_Show';
+  scheduledDate?: Date;
+  status: 'Pending_Scheduling' | 'Scheduled' | 'In_Progress' | 'Completed' | 'Cancelled' | 'No_Show';
   rating?: number;
   feedback?: string;
   mode?: 'In-person' | 'Phone' | 'Video';
@@ -51,11 +51,11 @@ const interviewSchema = new Schema<IInterview>({
     enum: ['Written', 'Walk-In', 'Telephonic', 'Technical', 'HR', 'HR & HOD', 'Managerial', 'Final'],
     required: true
   },
-  scheduledDate: { type: Date, required: true },
+  scheduledDate: { type: Date },
   status: {
     type: String,
-    enum: ['Scheduled', 'In_Progress', 'Completed', 'Cancelled', 'No_Show'],
-    default: 'Scheduled'
+    enum: ['Pending_Scheduling', 'Scheduled', 'In_Progress', 'Completed', 'Cancelled', 'No_Show'],
+    default: 'Pending_Scheduling'
   },
   rating: { type: Number, min: 1, max: 5 },
   feedback: { type: String },
